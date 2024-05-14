@@ -1,37 +1,35 @@
 using Microsoft.AspNetCore.Mvc;
 using newUserdefine1.Models;
-using newUserdefine1.Data;
-using newUserdefine1.Filter;
+using newUserdefine1.Services;
 using newUserdefine1.Entities;
 using newUserdefine1.Authorization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.JsonPatch;
-using System.Linq.Expressions;
 
 namespace newUserdefine1.Controllers
 {
     /// <summary>
-    /// Controller responsible for managing user-related operations in the API.
+    /// Controller responsible for managing user related operations.
     /// </summary>
     /// <remarks>
-    /// This controller provides endpoints for adding, retrieving, updating, and deleting user information.
+    /// This Controller provides endpoints for adding, retrieving, updating, and deleting user information.
     /// </remarks>
     [Route("api/user")]
     [Authorize]
     public class UserController : ControllerBase
     {
-        private readonly newUserdefine1Context _context;
+        private readonly IUserService _userService;
 
         /// <summary>
         /// Initializes a new instance of the UserController class with the specified context.
         /// </summary>
-        /// <param name="context">The database context to be used by the controller.</param>
-        public UserController(newUserdefine1Context context)
+        /// <param name="iuserservice">The iuserservice to be used by the controller.</param>
+        public UserController(IUserService iuserservice)
         {
-            _context = context;
+            _userService = iuserservice;
         }
 
-        /// <summary>Adds a new user to the database</summary>
+        /// <summary>Adds a new user</summary>
         /// <param name="model">The user data to be added</param>
         /// <returns>The result of the operation</returns>
         [HttpPost]
@@ -42,9 +40,8 @@ namespace newUserdefine1.Controllers
         [UserAuthorize("User",Entitlements.Create)]
         public IActionResult Post([FromBody] User model)
         {
-            _context.User.Add(model);
-            this._context.SaveChanges();
-            return Ok(new { model.Id });
+            var id = _userService.Create(model);
+            return Ok(new { id });
         }
 
         /// <summary>Retrieves a list of users based on specified filters</summary>
@@ -64,7 +61,6 @@ namespace newUserdefine1.Controllers
         [Produces("application/json")]
         public IActionResult Get([FromQuery] string filters, string searchTerm, int pageNumber = 1, int pageSize = 10, string sortField = null, string sortOrder = "asc")
         {
-            List<FilterCriteria> filterCriteria = null;
             if (pageSize < 1)
             {
                 return BadRequest("Page size invalid.");
@@ -75,35 +71,8 @@ namespace newUserdefine1.Controllers
                 return BadRequest("Page mumber invalid.");
             }
 
-            if (!string.IsNullOrEmpty(filters))
-            {
-                filterCriteria = JsonHelper.Deserialize<List<FilterCriteria>>(filters);
-            }
-
-            var query = _context.User.IncludeRelated().AsQueryable();
-            int skip = (pageNumber - 1) * pageSize;
-            var result = FilterService<User>.ApplyFilter(query, filterCriteria, searchTerm);
-            if (!string.IsNullOrEmpty(sortField))
-            {
-                var parameter = Expression.Parameter(typeof(User), "b");
-                var property = Expression.Property(parameter, sortField);
-                var lambda = Expression.Lambda<Func<User, object>>(Expression.Convert(property, typeof(object)), parameter);
-                if (sortOrder.Equals("asc", StringComparison.OrdinalIgnoreCase))
-                {
-                    result = result.OrderBy(lambda);
-                }
-                else if (sortOrder.Equals("desc", StringComparison.OrdinalIgnoreCase))
-                {
-                    result = result.OrderByDescending(lambda);
-                }
-                else
-                {
-                    return BadRequest("Invalid sort order. Use 'asc' or 'desc'.");
-                }
-            }
-
-            var paginatedResult = result.Skip(skip).Take(pageSize).ToList();
-            return Ok(paginatedResult);
+            var result = _userService.Get(filters, searchTerm, pageNumber, pageSize, sortField, sortOrder);
+            return Ok(result);
         }
 
         /// <summary>Retrieves a specific user by its primary key</summary>
@@ -118,8 +87,8 @@ namespace newUserdefine1.Controllers
         [Produces("application/json")]
         public IActionResult GetById([FromRoute] Guid id)
         {
-            var entityData = _context.User.IncludeRelated().FirstOrDefault(entity => entity.Id == id);
-            return Ok(entityData);
+            var result = _userService.GetById(id);
+            return Ok(result);
         }
 
         /// <summary>Deletes a specific user by its primary key</summary>
@@ -135,14 +104,7 @@ namespace newUserdefine1.Controllers
         [Route("{id:Guid}")]
         public IActionResult DeleteById([FromRoute] Guid id)
         {
-            var entityData = _context.User.IncludeRelated().FirstOrDefault(entity => entity.Id == id);
-            if (entityData == null)
-            {
-                return NotFound();
-            }
-
-            _context.User.Remove(entityData);
-            var status = this._context.SaveChanges();
+            var status = _userService.Delete(id);
             return Ok(new { status });
         }
 
@@ -165,8 +127,7 @@ namespace newUserdefine1.Controllers
                 return BadRequest("Mismatched Id");
             }
 
-            this._context.User.Update(updatedEntity);
-            var status = this._context.SaveChanges();
+            var status = _userService.Update(id, updatedEntity);
             return Ok(new { status });
         }
 
@@ -187,14 +148,7 @@ namespace newUserdefine1.Controllers
         {
             if (updatedEntity == null)
                 return BadRequest("Patch document is missing.");
-            var existingEntity = this._context.User.FirstOrDefault(t => t.Id == id);
-            if (existingEntity == null)
-                return NotFound();
-            updatedEntity.ApplyTo(existingEntity, ModelState);
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
-            this._context.User.Update(existingEntity);
-            var status = this._context.SaveChanges();
+            var status = _userService.Patch(id, updatedEntity);
             return Ok(new { status });
         }
     }

@@ -152,6 +152,12 @@
                 <a href="javascript:void(0)" class="list-card-item patient-list-item"
                     *ngFor="let record of mappedData; let i=index;" (click)="previewSpecificRecord(i)"
                     [ngClass]="{'card-active': i===selectedIndex}" id="div-{{i}}">
+                    <div class="dp-box">
+                        <div class="dp-box-icon" [ngClass]="getRandomClass(record)"
+                            *ngFor="let title of record.cardTitle?.fields">
+                            <span class="dp-text">{{ title.value.charAt(0) }}</span>
+                        </div>
+                    </div>
                     <div class="list-card-item-content flex-nowrap">
                         <div class="d-flex justify-content-between align-items-start w-100 mb-2">
                             <div class="col tuncate-text">

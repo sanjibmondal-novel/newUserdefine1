@@ -1,14 +1,20 @@
 using newUserdefine1.Data;
 using Microsoft.OpenApi.Models;
 using System.Reflection;
+using NLog.Web;
+using LogLevel = Microsoft.Extensions.Logging.LogLevel;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using newUserdefine1.Models;
 using newUserdefine1.Services;
+using newUserdefine1.Logger;
 using Newtonsoft.Json;
 var builder = WebApplication.CreateBuilder(args);
 
+// NLog: Setup NLog for Dependency injection
+builder.Logging.ClearProviders();
+builder.Host.UseNLog();
 // Add services to the container.
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
@@ -53,6 +59,12 @@ var config = new ConfigurationBuilder()
 AppSetting.JwtIssuer = config.GetValue<string>("Jwt:Issuer");
 AppSetting.JwtKey = config.GetValue<string>("Jwt:Key");
 AppSetting.TokenExpirationtime = config.GetValue<int>("TokenExpirationtime");
+// Add NLog as the logging service
+builder.Services.AddLogging(loggingBuilder =>
+{
+    loggingBuilder.ClearProviders(); // Remove other logging providers
+    loggingBuilder.SetMinimumLevel(LogLevel.Trace);
+});
 // Add JWT authentication services
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 .AddJwtBearer(options =>
@@ -68,7 +80,18 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(AppSetting.JwtKey ?? ""))
     };
 });
-builder.Services.AddTransient<IUserAuthenticationService, UserAuthenticationService>();
+//Service inject
+builder.Services.AddScoped<IBooksService, BooksService>();
+builder.Services.AddScoped<IAuthorService, AuthorService>();
+builder.Services.AddScoped<IRoleService, RoleService>();
+builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<ITenantService, TenantService>();
+builder.Services.AddScoped<IEntityService, EntityService>();
+builder.Services.AddScoped<IRoleEntitlementService, RoleEntitlementService>();
+builder.Services.AddScoped<IUserInRoleService, UserInRoleService>();
+builder.Services.AddScoped<IUserAuthenticationService, UserAuthenticationService>();
+builder.Services.AddTransient<ILoggerService, LoggerService>();
+//Json handler
 builder.Services.AddControllers().AddNewtonsoftJson(options =>
 {
     // Configure Newtonsoft.Json settings here

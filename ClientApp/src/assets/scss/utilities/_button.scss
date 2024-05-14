@@ -87,6 +87,7 @@
     padding: 10px 15px !important;
     border: none;
     border-radius: 6px;
+    letter-spacing: normal;
 
     @include tablet {
       padding: 8px 14px;
@@ -446,6 +447,7 @@
     padding: var(--ec-button-padding);
     border: none;
     border-radius: 6px;
+    letter-spacing: normal;
 
     .mdc-button__label {
       display: inline-flex;
@@ -1012,7 +1014,7 @@
 
   &-icon-gray-btn {
     display: inline-flex;
-    // align-items: center;
+    align-items: center;
     background-color: transparent;
     padding: var(--ec-button-padding);
     border: none;

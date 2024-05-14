@@ -1,37 +1,35 @@
 using Microsoft.AspNetCore.Mvc;
 using newUserdefine1.Models;
-using newUserdefine1.Data;
-using newUserdefine1.Filter;
+using newUserdefine1.Services;
 using newUserdefine1.Entities;
 using newUserdefine1.Authorization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.JsonPatch;
-using System.Linq.Expressions;
 
 namespace newUserdefine1.Controllers
 {
     /// <summary>
-    /// Controller responsible for managing role-related operations in the API.
+    /// Controller responsible for managing role related operations.
     /// </summary>
     /// <remarks>
-    /// This controller provides endpoints for adding, retrieving, updating, and deleting role information.
+    /// This Controller provides endpoints for adding, retrieving, updating, and deleting role information.
     /// </remarks>
     [Route("api/role")]
     [Authorize]
     public class RoleController : ControllerBase
     {
-        private readonly newUserdefine1Context _context;
+        private readonly IRoleService _roleService;
 
         /// <summary>
         /// Initializes a new instance of the RoleController class with the specified context.
         /// </summary>
-        /// <param name="context">The database context to be used by the controller.</param>
-        public RoleController(newUserdefine1Context context)
+        /// <param name="iroleservice">The iroleservice to be used by the controller.</param>
+        public RoleController(IRoleService iroleservice)
         {
-            _context = context;
+            _roleService = iroleservice;
         }
 
-        /// <summary>Adds a new role to the database</summary>
+        /// <summary>Adds a new role</summary>
         /// <param name="model">The role data to be added</param>
         /// <returns>The result of the operation</returns>
         [HttpPost]
@@ -42,9 +40,8 @@ namespace newUserdefine1.Controllers
         [UserAuthorize("Role",Entitlements.Create)]
         public IActionResult Post([FromBody] Role model)
         {
-            _context.Role.Add(model);
-            this._context.SaveChanges();
-            return Ok(new { model.Id });
+            var id = _roleService.Create(model);
+            return Ok(new { id });
         }
 
         /// <summary>Retrieves a list of roles based on specified filters</summary>
@@ -64,7 +61,6 @@ namespace newUserdefine1.Controllers
         [Produces("application/json")]
         public IActionResult Get([FromQuery] string filters, string searchTerm, int pageNumber = 1, int pageSize = 10, string sortField = null, string sortOrder = "asc")
         {
-            List<FilterCriteria> filterCriteria = null;
             if (pageSize < 1)
             {
                 return BadRequest("Page size invalid.");
@@ -75,35 +71,8 @@ namespace newUserdefine1.Controllers
                 return BadRequest("Page mumber invalid.");
             }
 
-            if (!string.IsNullOrEmpty(filters))
-            {
-                filterCriteria = JsonHelper.Deserialize<List<FilterCriteria>>(filters);
-            }
-
-            var query = _context.Role.IncludeRelated().AsQueryable();
-            int skip = (pageNumber - 1) * pageSize;
-            var result = FilterService<Role>.ApplyFilter(query, filterCriteria, searchTerm);
-            if (!string.IsNullOrEmpty(sortField))
-            {
-                var parameter = Expression.Parameter(typeof(Role), "b");
-                var property = Expression.Property(parameter, sortField);
-                var lambda = Expression.Lambda<Func<Role, object>>(Expression.Convert(property, typeof(object)), parameter);
-                if (sortOrder.Equals("asc", StringComparison.OrdinalIgnoreCase))
-                {
-                    result = result.OrderBy(lambda);
-                }
-                else if (sortOrder.Equals("desc", StringComparison.OrdinalIgnoreCase))
-                {
-                    result = result.OrderByDescending(lambda);
-                }
-                else
-                {
-                    return BadRequest("Invalid sort order. Use 'asc' or 'desc'.");
-                }
-            }
-
-            var paginatedResult = result.Skip(skip).Take(pageSize).ToList();
-            return Ok(paginatedResult);
+            var result = _roleService.Get(filters, searchTerm, pageNumber, pageSize, sortField, sortOrder);
+            return Ok(result);
         }
 
         /// <summary>Retrieves a specific role by its primary key</summary>
@@ -118,8 +87,8 @@ namespace newUserdefine1.Controllers
         [Produces("application/json")]
         public IActionResult GetById([FromRoute] Guid id)
         {
-            var entityData = _context.Role.IncludeRelated().FirstOrDefault(entity => entity.Id == id);
-            return Ok(entityData);
+            var result = _roleService.GetById(id);
+            return Ok(result);
         }
 
         /// <summary>Deletes a specific role by its primary key</summary>
@@ -135,14 +104,7 @@ namespace newUserdefine1.Controllers
         [Route("{id:Guid}")]
         public IActionResult DeleteById([FromRoute] Guid id)
         {
-            var entityData = _context.Role.IncludeRelated().FirstOrDefault(entity => entity.Id == id);
-            if (entityData == null)
-            {
-                return NotFound();
-            }
-
-            _context.Role.Remove(entityData);
-            var status = this._context.SaveChanges();
+            var status = _roleService.Delete(id);
             return Ok(new { status });
         }
 
@@ -165,8 +127,7 @@ namespace newUserdefine1.Controllers
                 return BadRequest("Mismatched Id");
             }
 
-            this._context.Role.Update(updatedEntity);
-            var status = this._context.SaveChanges();
+            var status = _roleService.Update(id, updatedEntity);
             return Ok(new { status });
         }
 
@@ -187,14 +148,7 @@ namespace newUserdefine1.Controllers
         {
             if (updatedEntity == null)
                 return BadRequest("Patch document is missing.");
-            var existingEntity = this._context.Role.FirstOrDefault(t => t.Id == id);
-            if (existingEntity == null)
-                return NotFound();
-            updatedEntity.ApplyTo(existingEntity, ModelState);
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
-            this._context.Role.Update(existingEntity);
-            var status = this._context.SaveChanges();
+            var status = _roleService.Patch(id, updatedEntity);
             return Ok(new { status });
         }
     }

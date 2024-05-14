@@ -47,14 +47,6 @@
     }
 }
 
-.ec-icon-gray-btn:hover {
-    background-color: transparent;
-
-    .icon-gray-btn-text {
-        color: $primary-color;
-    }
-}
-
 @media screen and (max-width: 1200px) {
     .col-md-4 {
         width: 50%;

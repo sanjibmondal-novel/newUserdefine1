@@ -77,6 +77,7 @@ export class TemplateListComponent implements OnInit, OnChanges, OnDestroy {
         selectedDiv?.scrollIntoView(inline);
       }
     }, 100);
+    this.generateRandomClasses();
   }
 
   ngOnDestroy(): void {
@@ -171,6 +172,19 @@ export class TemplateListComponent implements OnInit, OnChanges, OnDestroy {
           }
         }
       });
+  }
+
+  private generateRandomClasses(): void {
+    const numClasses = 9,
+      classes = Array.from({ length: numClasses }, (_, index) => `color-${index + 1}`);
+    this.mappedData.forEach(record => {
+      const randomIndex = Math.floor(Math.random() * classes.length);
+      record.randomClass = classes[randomIndex];
+    });
+  }
+
+  public getRandomClass(record: any): string {
+    return record.randomClass;
   }
 
   public truncateText(text: string): string {

@@ -217,7 +217,7 @@ describe('TemplateListComponent', () => {
         mockDiv.id = 'div-0';
         spyOn(document, 'getElementById').and.returnValue(mockDiv);
         const scrollIntoViewSpy = spyOn(mockDiv, 'scrollIntoView');
-        component.mappedData = [1, 2, 3, 4, 5];
+        component.mappedData = [{ id: 1 }, { id: 2 }, { id: 3 }, { id: 4 }, { id: 5 }];
         component['pageNumber'] = 1;
         component['pageSize'] = 5;
 
